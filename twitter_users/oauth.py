@@ -2,7 +2,7 @@
 import oauth2
 import urllib
 
-from twitter_users import settings
+from twitter_users import _settings as settings
 
 # not sure why this is necessary, but oauth2 does this, so I'm following its lead
 try:
@@ -13,6 +13,7 @@ except ImportError:
 REQUEST_TOKEN_URL = 'https://api.twitter.com/oauth/request_token'
 ACCESS_TOKEN_URL  = 'https://api.twitter.com/oauth/access_token'
 AUTHORIZATION_URL = 'https://api.twitter.com/oauth/authorize'
+AUTHENTICATE_URL = 'https://api.twitter.com/oauth/authenticate'
 
 class Consumer(oauth2.Consumer):
     pass
@@ -54,27 +55,40 @@ class RequestToken(Token):
         request.sign_request(oauth2.SignatureMethod_HMAC_SHA1(), self.consumer, self.token)
         return request.to_url()
 
+    @property
+    def authenticate_url(self):
+        request = oauth2.Request.from_consumer_and_token(
+            self.consumer,
+            self.token,
+            http_url = AUTHENTICATE_URL
+        )
+        request.sign_request(oauth2.SignatureMethod_HMAC_SHA1(), self.consumer, self.token)
+        return request.to_url()
+
 class AccessToken(Token):
     def __init__(self, consumer, oauth_token, oauth_verifier):
         super(AccessToken, self).__init__(consumer)
         
         # parse the access token by hand to get access to the additional
         # parameters that Twitter passes back, like the user id and screen name
-        token_content = self._get_token(ACCESS_TOKEN_URL, oauth_token=oauth_token, oauth_verifier=oauth_verifier)
-        self.params   = parse_qs(token_content)
-    
+        self.token_content = self._get_token(ACCESS_TOKEN_URL, oauth_token=oauth_token, oauth_verifier=oauth_verifier)
+
+
+
+        if self.token_content:
+          self.params   = parse_qs(self.token_content)
+
     @property
-    def token(self):
-        return self.params['oauth_token'][0]
-    
-    @property
-    def secret(self):
-        return self.params['oauth_token_secret'][0]
-    
-    @property
-    def user_id(self):
-        return self.params['user_id'][0]
-    
-    @property
-    def username(self):
-        return self.params['screen_name'][0]
+    def response(self):
+        if not self.token_content:
+            response = {'status': 0}
+        else:    
+          response = {
+                'token': self.params['oauth_token'][0],
+                'username': self.params['screen_name'][0],
+                'secret': self.params['oauth_token_secret'][0],
+                'user_id': self.params['user_id'][0],
+                'status': 1,
+              }
+
+        return response

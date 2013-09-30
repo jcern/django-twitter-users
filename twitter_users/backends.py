@@ -1,29 +1,38 @@
+from mongoengine import *
+from twitter_users.models import *
 
-from django.contrib.auth.models import User
+from django.utils.encoding import smart_str
+from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth.hashers import check_password, make_password
+from django.utils.translation import ugettext_lazy as _
 
-from twitter_users.models import TwitterInfo
-from twitter_users import settings
+import datetime
+
+REDIRECT_FIELD_NAME = 'next'
 
 class TwitterBackend(object):
-    def authenticate(self, twitter_id=None, username=None, token=None, secret=None):
-        # find or create the user
-        try:
-            info = TwitterInfo.objects.get(id=twitter_id)
-            # make sure the screen name is current
-            if info.name != username:
-                info.name = username
-                info.save()
-            user = info.user
-        except TwitterInfo.DoesNotExist:
-            email    = "%s@twitter.com" % username
-            user     = User.objects.create_user(settings.USERS_FORMAT % username, email)
-            user.save()
-            info = TwitterInfo(user=user, name=username, id=twitter_id, token=token, secret=secret)
-            info.save()
-        return user
-    
+    """Authenticate using MongoEngine and mongoengine.django.auth.User.
+    """
+
+    supports_object_permissions = False
+    supports_anonymous_user = False
+    supports_inactive_user = False
+
+    def authenticate(self, username=None, password=None):
+        user = User.objects(username=username).first()
+        if user:
+            return user
+        return None
+
     def get_user(self, user_id):
-        try:
-            return User.objects.get(pk=user_id)
-        except User.DoesNotExist:
-            return None
+        return User.objects.with_id(user_id)
+
+
+def get_user(userid):
+    """Returns a User object from an id (User.id). Django's equivalent takes
+    request, but taking an id instead leaves it up to the developer to store
+    the id in any way they want (session, signed cookie, etc.)
+    """
+    if not userid:
+        return AnonymousUser()
+    return TwitterBackend().get_user(userid) or AnonymousUser()
