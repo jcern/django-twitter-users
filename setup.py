@@ -3,14 +3,14 @@ from setuptools import setup, find_packages
 import os, re
 
 PKG="twitter_users"
-verstr="0.1.1"
+verstr="0.1.1-django17"
 
 setup(name=PKG,
       version=verstr,
       description="Django app for Twitter authentication",
       author="Matt Diephouse",
       author_email="matt@diephouse.com",
-      url="https://github.com/mdiep/django-twitter-users",
+      url="https://github.com/jcern/django-twitter-users",
       packages = find_packages(),
       install_requires = ['Django', 'oauth2'],
       license = "BSD3",
